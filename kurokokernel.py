@@ -92,6 +92,9 @@ class KrkClass(ctypes.Structure):
         ('base', ctypes.POINTER(KrkObj)),
         ('methodTable', KrkTable),
         ('fieldTable', KrkTable),
+        ('allocSize', ctypes.c_size_t),
+        ('_ongcscan', ctypes.c_void_p),
+        ('_ongcsweep', ctypes.c_void_p),
         ('_getter', ctypes.POINTER(KrkObj)),
         ('_setter', ctypes.POINTER(KrkObj)),
         ('_slicer', ctypes.POINTER(KrkObj)),
@@ -124,9 +127,9 @@ class KurokoVM(object):
         self.push.argtypes = [KrkValue]
         self.pop = self.lib.krk_pop
         self.pop.restype = KrkValue
-        self.typeOf = self.lib.krk_typeOf
-        self.typeOf.argtypes = [ctypes.c_int, ctypes.POINTER(KrkValue)]
-        self.typeOf.restype = KrkValue
+        self.getType = self.lib.krk_getType
+        self.getType.argtypes = [KrkValue]
+        self.getType.restype = ctypes.POINTER(KrkClass)
         self.callSimple = self.lib.krk_callSimple
         self.callSimple.argtypes = [KrkValue, ctypes.c_int, ctypes.c_int]
         self.callSimple.restype = KrkValue
@@ -134,8 +137,7 @@ class KurokoVM(object):
 
     def reprVal(self, value):
         self.push(value)
-        typeVal = self.typeOf(1,ctypes.pointer(value))
-        classObj = ctypes.cast(typeVal.as_.object, ctypes.POINTER(KrkClass))
+        classObj = self.getType(value)
         reprAsValue = KrkValue(type_=KrkValueType.VAL_OBJECT,as_=KrkValueAs(object=classObj.contents._reprer))
         reprResult = self.callSimple(reprAsValue, 1, 0)
         self.lib.krk_resetStack()
@@ -172,7 +174,7 @@ class KurokoKernel(Kernel):
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
         response = self.vm.call(code)
         if response is not None:
-            self.send_response(self.iopub_socket, 'stream', {'name': 'stdout', 'text': response + '\n'})
+            self.send_response(self.iopub_socket, 'execute_result', {'execution_count': self.execution_count, 'data': {'text/plain': response}})
         return {'status': 'ok',
                 'execution_count': self.execution_count,
                 'payload': [],
