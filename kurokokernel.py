@@ -1,14 +1,11 @@
 '''
 Jupyter Kernel for Kuroko
 '''
-from ipykernel.kernelbase import Kernel
-
-from pygments.lexers import PythonLexer
-
-
-
 import ctypes
 from enum import IntEnum
+
+from ipykernel.kernelbase import Kernel
+from pygments.lexers import PythonLexer
 
 class KrkValueType(IntEnum):
     VAL_NONE      = 0
@@ -40,13 +37,14 @@ class KrkJumpTarget(ctypes.Structure):
 class KrkObj(ctypes.Structure):
     _fields_ = [
         ('type_', ctypes.c_int),
-        ('isMarked', ctypes.c_byte),
+        ('flags', ctypes.c_byte),
+        ('hash', ctypes.c_uint32),
         ('next', ctypes.c_void_p),
     ]
 
 class KrkValueAs(ctypes.Union):
     _fields_ = [
-        ('boolean', ctypes.c_byte),
+        ('boolean', ctypes.c_long),
         ('integer', ctypes.c_long), # Or `long long`, really need to check the lib at runtime...
         ('floating', ctypes.c_double),
         ('handler', KrkJumpTarget),
@@ -76,7 +74,6 @@ class KrkString(ctypes.Structure):
     _fields_ = [
         ('obj', KrkObj),
         ('type_', ctypes.c_int),
-        ('hash', ctypes.c_uint32),
         ('length', ctypes.c_size_t),
         ('codesLength', ctypes.c_size_t),
         ('chars', ctypes.c_char_p),
